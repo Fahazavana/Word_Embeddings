@@ -13,9 +13,10 @@ class Corpus:
     def __init__(self, file_name: str, window_size: int = 1):
         self.file_name = file_name
         self.window_size = window_size
-        self.word2id: Dict[str, int] = {}
-        self.id2word: Dict[int, str] = {}
-        self.vocab_size: int = 0
+        self.word2id: Dict[str, int] = {"<pad>":0, "<unk>":1}
+        self.id2word: Dict[int, str] = {0:"<pad>", 1: "<unk>"}
+        self.vocab_size: int = 2
+        self.total = 2
         self.data: Union[List, torch.Tensor] = []
         self.__build_data()
 
@@ -30,6 +31,8 @@ class Corpus:
                 self.word2id[word] = self.vocab_size
                 self.id2word[self.vocab_size] = word
                 self.vocab_size += 1
+            self.total+=1
+                
 
     def __write_pairs(self, text: List[str]) -> None:
         for i, word in enumerate(text):
@@ -77,11 +80,12 @@ class SkipGram(nn.Module):
         output = self.uEmbedding(v)
         return output
 
+
     def get_metrics(self, idx):
         with torch.no_grad():
-            v = self.vEmbedding.weight[idx]
+            v = self.vEmbedding(idx)
             similarities = torch.cosine_similarity(
-                v.unsqueeze(0), self.uEmbedding.weight, dim=1
+                self.vEmbedding.weight, v.unsqueeze(0), dim=1
             )
         return similarities, 1 - similarities
 
@@ -105,4 +109,4 @@ class SkipGram(nn.Module):
                 pbar.set_postfix(loss=f"{total_loss/N:.2f}")
             log.append(total_loss / N)
         self.eval()
-        return self, log
+        return self, np.array(log)
